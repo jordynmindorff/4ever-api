@@ -2,7 +2,7 @@ import ErrorResponse from '../utils/errorResponse.js';
 const jwt = require('jsonwebtoken');
 import status from 'http-status';
 
-const authRequest = (req, res, next) => {
+export const protect = (req, res, next) => {
 	const tokenSecret = process.env.TOKEN_SECRET;
 	let authHeader = req.headers.authorization;
 
@@ -28,5 +28,3 @@ const authRequest = (req, res, next) => {
 		return next(new ErrorResponse('Unauthorized', status.BAD_REQUEST));
 	}
 };
-
-module.exports = authRequest;

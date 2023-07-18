@@ -2,44 +2,53 @@ import ErrorResponse from '../utils/errorResponse.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import status from 'http-status';
+import UserSchema from '../validation/UserValidationSchema.js';
+import { client } from '../utils/db.js';
 
 // @desc create an account
 // @route POST /api/auth/signup
 // @access Public
 export const createAccount = async (req, res, next) => {
 	try {
-		const { username, password, email, birthday } = req.body;
-		if (!username || !password || !email || !birthday) {
-			return next(new ErrorResponse('Invalid Request', status.BAD_REQUEST));
-		}
+		let { username, password, email, birthday } = req.body;
+		username = username.toLowerCase();
 
-		const validity = await userValidationSchema.isValid(req.body);
+		// TODO return specific invalid fields/requirements in response (look at validate function instead of isValid)
+		const validity = await UserSchema.isValid(req.body);
 		if (!validity) return next(new ErrorResponse('Invalid User Data', status.BAD_REQUEST));
 
 		const salt = await bcrypt.genSalt(10);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
-		const newUser = await AccessUser.create({
-			username,
-			password: hashedPassword,
-			email,
-			accessLevel: 0,
-		});
+		const alreadyExistsCheck = await client.query(
+			'SELECT * FROM public.user WHERE username=$1 OR email=$2',
+			[username, email]
+		);
 
-		res.status(status.CREATED).json({
+		// TODO which is it?
+		if (alreadyExistsCheck.rows.length > 0) {
+			return next(
+				new ErrorResponse(
+					'User with Same Email or Username Already Exists',
+					status.BAD_REQUEST
+				)
+			);
+		}
+
+		const creation = await client.query(
+			'INSERT INTO public.user (username, email, password, birthday, access_level) VALUES ($1, $2, $3, $4, 0) RETURNING *',
+			[username, email, hashedPassword, birthday]
+		);
+
+		delete creation.rows[0].password;
+
+		return res.status(status.CREATED).json({
 			success: true,
-			data: {
-				username: newUser.username,
-				email: newUser.email,
-				accessLevel: newUser.accessLevel,
-			},
+			data: creation.rows[0],
 		});
 	} catch (err) {
-		if (err.code === 11000) {
-			return next(new ErrorResponse('Already Exists', 400));
-		} else {
-			return next(new ErrorResponse('Server Error', 500));
-		}
+		console.log(err);
+		return next(new ErrorResponse('Server Error', 500));
 	}
 };
 
