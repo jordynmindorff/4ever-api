@@ -6,12 +6,13 @@ import UserSchema from '../validation/UserValidationSchema.js';
 import { client } from '../utils/db.js';
 
 // @desc create an account
-// @route POST /api/auth/signup
+// @route POST /v1/auth/signup
 // @access Public
 export const createAccount = async (req, res, next) => {
 	try {
 		let { username, password, email, birthday } = req.body;
 		username = username.toLowerCase();
+		email = email.toLowerCase();
 
 		// TODO return specific invalid fields/requirements in response (look at validate function instead of isValid)
 		const validity = await UserSchema.isValid(req.body);
@@ -53,52 +54,58 @@ export const createAccount = async (req, res, next) => {
 };
 
 // @desc login with username and password to receive JWT token to use for future requests
-// @route POST /api/auth/login
+// @route POST /v1/auth/login
 // @access Public
 export const login = async (req, res, next) => {
 	try {
-		const { password, email, username } = req.body;
+		let { password, email, username } = req.body;
 		if (!password || (!email && !username)) {
 			return next(new ErrorResponse('Insufficient Details Provided', 400));
 		}
 
 		if (username) {
-			const accessUser = await AccessUser.findOne({ username });
-			if (!accessUser) return next(new ErrorResponse('User Not Found', 404));
+			username = username.toLowerCase();
+			const user = await client.query('SELECT * FROM public.user WHERE username=$1', [
+				username,
+			]);
+			if (user.rows.length < 1) return next(new ErrorResponse('User Not Found', 404));
 
-			const { _id, password: hashedPassword, accessLevel } = accessUser;
+			const { id, password: hashedPassword, access_level } = user.rows[0];
 
 			const passwordValid = await bcrypt.compare(password, hashedPassword);
 
 			if (passwordValid) {
-				const accessToken = jwt.sign({ _id, accessLevel }, process.env.TOKEN_SECRET);
+				// ! Don't include mutable data in a JWT payload, that's bad. What if they update email/username and then try to authenticate with the key? Stick to id.
+				const accessToken = jwt.sign({ id }, process.env.TOKEN_SECRET);
 				return res.json({
 					success: true,
 					data: {
 						token: accessToken,
 						user: {
 							username,
-							_id,
+							id,
 							email,
-							accessLevel,
+							access_level,
 						},
 					},
 				});
 			} else {
-				return next(new ErrorResponse('Access Denied', 401));
+				return next(new ErrorResponse('Access Denied', status.UNAUTHORIZED));
 			}
 		}
 
 		if (email) {
-			const accessUser = await AccessUser.findOne({ email });
-			if (!accessUser) return next(new ErrorResponse('User Not Found', 404));
+			email = email.toLowerCase();
 
-			const { _id, password: hashedPassword, username, accessLevel } = accessUser;
+			const user = await client.query('SELECT * FROM public.user WHERE email=$1', [email]);
+			if (user.rows.length < 1) return next(new ErrorResponse('User Not Found', 404));
+
+			const { id, password: hashedPassword, username, access_level } = user;
 
 			const passwordValid = await bcrypt.compare(password, hashedPassword);
 
 			if (passwordValid) {
-				const accessToken = jwt.sign({ _id, accessLevel }, process.env.TOKEN_SECRET);
+				const accessToken = jwt.sign({ id }, process.env.TOKEN_SECRET);
 				res.json({
 					success: true,
 					data: {
@@ -107,7 +114,7 @@ export const login = async (req, res, next) => {
 							username,
 							_id,
 							email,
-							accessLevel,
+							access_level,
 						},
 					},
 				});
