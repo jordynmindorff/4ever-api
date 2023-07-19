@@ -8,7 +8,7 @@ import { connect } from './utils/db.js';
 
 // Routers
 import authRouter from './routes/authRoutes.js';
-import memoriesRouter from './routes/memoriesRoutes.js';
+import memoriesRouter from './routes/memoryRoutes.js';
 
 // Connect to DB
 connect();
@@ -29,7 +29,7 @@ app.use(express.json());
 app.use('/v1/auth', authRouter);
 
 // Mount router for authentication routes
-app.use('/v1/memories', memoriesRouter);
+app.use('/v1/memory', memoriesRouter);
 
 // Error handler middleware
 app.use(errorHandler);

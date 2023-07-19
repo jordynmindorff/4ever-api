@@ -1,8 +1,9 @@
 import ErrorResponse from '../utils/errorResponse.js';
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 import status from 'http-status';
+import { client } from '../utils/db.js';
 
-export const protect = (req, res, next) => {
+const protect = async (req, res, next) => {
 	const tokenSecret = process.env.TOKEN_SECRET;
 	let authHeader = req.headers.authorization;
 
@@ -18,13 +19,25 @@ export const protect = (req, res, next) => {
 		}
 
 		const payload = jwt.verify(authHeader, tokenSecret);
+		const user = await client.query('SELECT * FROM public.user WHERE id=$1', [payload.id]);
 
-		if (payload.accessLevel >= 30) {
+		if (user.rows.length < 1) {
+			return next(new ErrorResponse('User Not Found', status.NOT_FOUND));
+		}
+
+		// Store user id down request chain
+		req.user = payload.id;
+
+		// TODO Allow to pass accessLevel parameter to protect routes for admin access and such
+		if (user.rows[0].access_level >= 0) {
 			next();
 		} else {
 			throw new Error('Unauthorized Access Level');
 		}
 	} catch (err) {
-		return next(new ErrorResponse('Unauthorized', status.BAD_REQUEST));
+		// ! I mean, could be server error, revisit this
+		return next(new ErrorResponse('Unauthorized', status.BAD_REQUEST, err));
 	}
 };
+
+export default protect;

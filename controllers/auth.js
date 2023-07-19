@@ -48,8 +48,7 @@ export const createAccount = async (req, res, next) => {
 			data: creation.rows[0],
 		});
 	} catch (err) {
-		console.log(err);
-		return next(new ErrorResponse('Server Error', 500));
+		return next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
 	}
 };
 
@@ -60,7 +59,7 @@ export const login = async (req, res, next) => {
 	try {
 		let { password, email, username } = req.body;
 		if (!password || (!email && !username)) {
-			return next(new ErrorResponse('Insufficient Details Provided', 400));
+			return next(new ErrorResponse('Insufficient Details Provided', status.BAD_REQUEST));
 		}
 
 		if (username) {
@@ -68,7 +67,8 @@ export const login = async (req, res, next) => {
 			const user = await client.query('SELECT * FROM public.user WHERE username=$1', [
 				username,
 			]);
-			if (user.rows.length < 1) return next(new ErrorResponse('User Not Found', 404));
+			if (user.rows.length < 1)
+				return next(new ErrorResponse('User Not Found', status.NOT_FOUND));
 
 			const { id, password: hashedPassword, access_level } = user.rows[0];
 
@@ -98,7 +98,8 @@ export const login = async (req, res, next) => {
 			email = email.toLowerCase();
 
 			const user = await client.query('SELECT * FROM public.user WHERE email=$1', [email]);
-			if (user.rows.length < 1) return next(new ErrorResponse('User Not Found', 404));
+			if (user.rows.length < 1)
+				return next(new ErrorResponse('User Not Found', status.NOT_FOUND));
 
 			const { id, password: hashedPassword, username, access_level } = user;
 
@@ -119,10 +120,10 @@ export const login = async (req, res, next) => {
 					},
 				});
 			} else {
-				return next(new ErrorResponse('Access Denied', 401));
+				return next(new ErrorResponse('Access Denied', status.UNAUTHORIZED));
 			}
 		}
 	} catch (err) {
-		return next(new ErrorResponse('Server Error', 500));
+		return next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
 	}
 };
