@@ -58,11 +58,11 @@ export const createMemory = async (req, res, next) => {
 };
 
 // @desc delete a memory
-// @route DELETE /v1/memory/
+// @route DELETE /v1/memory/:memoryId
 // @access PRIVATE
 export const deleteMemory = async (req, res, next) => {
 	try {
-		const { memoryId } = req.body;
+		const { memoryId } = req.params;
 		const { user: id } = req;
 
 		if (!memoryId)
@@ -80,6 +80,43 @@ export const deleteMemory = async (req, res, next) => {
 
 		return res.json({
 			success: true,
+		});
+	} catch (err) {
+		next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
+	}
+};
+
+// @desc update a memory
+// @route PATCH /v1/memory/:memoryId
+// @access PRIVATE
+export const updateMemory = async (req, res, next) => {
+	try {
+		const { memoryId } = req.params;
+		const { user: id } = req;
+
+		if (!memoryId)
+			return next(new ErrorResponse('Missing Required Fields', status.BAD_REQUEST));
+
+		const check = await client.query('SELECT * FROM public.memory WHERE user_id=$1 AND id=$2', [
+			id,
+			memoryId,
+		]);
+
+		if (check.rows.length < 1)
+			return next(new ErrorResponse('Memory Not Found', status.NOT_FOUND));
+
+		const updatedDate = req.body.date ? req.body.date : check.rows[0].date;
+		const updatedImage = req.body.imageURL ? req.body.imageURL : check.rows[0].image_link;
+		const updatedBody = req.body.bodyText ? req.body.bodyText : check.rows[0].body;
+
+		const updated = await client.query(
+			'UPDATE public.memory SET date=$1, image_link=$2, body=$3 WHERE user_id=$4 AND id=$5 RETURNING *',
+			[updatedDate, updatedImage, updatedBody, id, memoryId]
+		);
+
+		return res.json({
+			success: true,
+			data: updated.rows,
 		});
 	} catch (err) {
 		next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
