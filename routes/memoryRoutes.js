@@ -1,7 +1,13 @@
 import express from 'express';
 import protect from '../middleware/auth.js';
 
-import { getMemories, createMemory, deleteMemory, updateMemory } from '../controllers/memory.js';
+import {
+	getMemories,
+	getMemory,
+	createMemory,
+	deleteMemory,
+	updateMemory,
+} from '../controllers/memory.js';
 
 const memoriesRouter = express.Router();
 
@@ -11,6 +17,10 @@ memoriesRouter
 	.post(protect, createMemory)
 	.delete(protect, deleteMemory);
 
-memoriesRouter.route('/:memoryId').delete(protect, deleteMemory).patch(protect, updateMemory);
+memoriesRouter
+	.route('/:memoryId')
+	.delete(protect, deleteMemory)
+	.patch(protect, updateMemory)
+	.get(protect, getMemory);
 
 export default memoriesRouter;
