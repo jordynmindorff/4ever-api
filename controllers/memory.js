@@ -12,17 +12,48 @@ const isValidUrl = (urlString) => {
 	}
 };
 
-// @desc get all memories associated with a user account
+// @desc get all memories associated with a user account (body text not included)
 // @route GET /v1/memory/
 // @access PRIVATE
 export const getMemories = async (req, res, next) => {
 	try {
 		const { user: id } = req;
-		const memories = await client.query('SELECT * FROM public.memory WHERE user_id=$1', [id]);
+		const memories = await client.query(
+			'SELECT id, user_id, date, image_link FROM public.memory WHERE user_id=$1',
+			[id]
+		);
 
 		return res.json({
 			success: true,
 			data: memories.rows,
+		});
+	} catch (err) {
+		next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
+	}
+};
+
+// @desc get single memory with full detail
+// @route GET /v1/memory/:memoryId
+// @access PRIVATE
+export const getMemory = async (req, res, next) => {
+	try {
+		const { memoryId } = req.params;
+		const { user: id } = req;
+
+		if (!memoryId)
+			return next(new ErrorResponse('Missing Required Fields', status.BAD_REQUEST));
+
+		const memory = await client.query(
+			'SELECT * FROM public.memory WHERE user_id=$1 AND id=$2',
+			[id, memoryId]
+		);
+
+		if (memory.rows.length < 1)
+			return next(new ErrorResponse('Memory Not Found', status.NOT_FOUND));
+
+		return res.json({
+			success: true,
+			data: memory.rows,
 		});
 	} catch (err) {
 		next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
