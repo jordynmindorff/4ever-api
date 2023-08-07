@@ -70,7 +70,7 @@ export const login = async (req, res, next) => {
 			if (user.rows.length < 1)
 				return next(new ErrorResponse('User Not Found', status.NOT_FOUND));
 
-			const { id, password: hashedPassword, access_level } = user.rows[0];
+			const { id, password: hashedPassword, access_level, email } = user.rows[0];
 
 			const passwordValid = await bcrypt.compare(password, hashedPassword);
 
@@ -101,7 +101,7 @@ export const login = async (req, res, next) => {
 			if (user.rows.length < 1)
 				return next(new ErrorResponse('User Not Found', status.NOT_FOUND));
 
-			const { id, password: hashedPassword, username, access_level } = user;
+			const { id, password: hashedPassword, username, access_level, birthday } = user;
 
 			const passwordValid = await bcrypt.compare(password, hashedPassword);
 
@@ -116,6 +116,7 @@ export const login = async (req, res, next) => {
 							_id,
 							email,
 							access_level,
+							birthday,
 						},
 					},
 				});
@@ -126,4 +127,30 @@ export const login = async (req, res, next) => {
 	} catch (err) {
 		return next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
 	}
+};
+
+// @desc Send JWT for validation & return user info
+// @route POST /v1/auth/confirmsession
+// @access PRIVATE
+export const confirmSession = async (req, res, next) => {
+	const { user: id } = req;
+
+	const user = await client.query('SELECT * FROM public.user WHERE id=$1', [id]);
+
+	if (user.rows.length < 1) return next(new ErrorResponse('User Not Found', status.NOT_FOUND));
+
+	const { username, email, access_level, birthday } = user.rows[0];
+
+	return res.json({
+		success: true,
+		data: {
+			user: {
+				username,
+				id,
+				email,
+				access_level,
+				birthday,
+			},
+		},
+	});
 };
