@@ -14,9 +14,8 @@ export const createAccount = async (req, res, next) => {
 		username = username.toLowerCase();
 		email = email.toLowerCase();
 
-		// TODO return specific invalid fields/requirements in response (look at validate function instead of isValid)
-		const validity = await UserSchema.isValid(req.body);
-		if (!validity) return next(new ErrorResponse('Invalid User Data', status.BAD_REQUEST));
+		// Run validation, will throw error if fails
+		await UserSchema.validate(req.body);
 
 		const salt = await bcrypt.genSalt(10);
 		const hashedPassword = await bcrypt.hash(password, salt);
@@ -48,6 +47,11 @@ export const createAccount = async (req, res, next) => {
 			data: creation.rows[0],
 		});
 	} catch (err) {
+		if (err.name === 'ValidationError') {
+			return next(
+				new ErrorResponse(`Validation Error: ${err.errors}`, status.BAD_REQUEST, err)
+			);
+		}
 		return next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
 	}
 };
