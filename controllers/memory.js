@@ -53,7 +53,7 @@ export const getMemory = async (req, res, next) => {
 
 		return res.json({
 			success: true,
-			data: memory.rows,
+			data: memory.rows[0],
 		});
 	} catch (err) {
 		next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
@@ -81,7 +81,7 @@ export const createMemory = async (req, res, next) => {
 
 		return res.status(status.CREATED).json({
 			success: true,
-			data: newMemory.rows,
+			data: newMemory.rows[0],
 		});
 	} catch (err) {
 		next(new ErrorResponse('Server Error', status.INTERNAL_SERVER_ERROR, err));
